@@ -1,4 +1,4 @@
-apply plugin: 'android-library'
+apply plugin: 'com.android.library'
 
 buildscript {
     repositories {
@@ -6,7 +6,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.6.+'
+        classpath 'com.android.tools.build:gradle:2.0.0'
     }
 }
 
@@ -14,7 +14,7 @@ archivesBaseName = 'extra-viewpager'
 
 dependencies {
 	compile project(':library')
-	compile 'com.android.support:support-v4:18.0.+'
+	compile 'com.android.support:support-v4:18.0.0'
 }
 
 android {
