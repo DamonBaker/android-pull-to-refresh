@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Copyright 2011, 2012 Chris Banes.
  * Copyright 2013 Naver Business Platform Corp.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -61,6 +61,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	public static final float DEFAULT_FRICTION = 2.0f;
 	public static final int DEFAULT_SMOOTH_SCROLL_DURATION_MS = 200;
 	public static final int DEFAULT_SMOOTH_SCROLL_LONG_DURATION_MS = 325;
+	public static final float DEFAULT_RELEASE_RATIO = 1.0f;
 
 	static final int DEMO_SCROLL_INTERVAL = 225;
 
@@ -81,16 +82,17 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	
+
 	private int mTouchSlop;
 	private float mLastMotionX, mLastMotionY;
 	private float mInitialMotionX, mInitialMotionY;
-	
+
 	// needed properties while scrolling
 	private float mFriction;
 	private int mSmoothScrollDurationMs = 200;
 	private int mSmoothScrollLongDurationMs = 325;
-	
+	private float mReleaseRatio;
+
 	private boolean mIsBeingDragged = false;
 	private State mState = State.RESET;
 	private Mode mMode = Mode.getDefault();
@@ -107,29 +109,29 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 	private Interpolator mScrollAnimationInterpolator;
 	private Class<? extends LoadingLayout> mLoadingLayoutClazz = null;
-	
+
 	private LoadingLayout mHeaderLayout;
 	private LoadingLayout mFooterLayout;
 
 	/**
-	 * Top DecorView for containing google style pull to refresh 
+	 * Top DecorView for containing google style pull to refresh
 	 */
 	private FrameLayout mTopActionbarLayout;
 	/**
 	 * Flag whether {@link #onAttachedToWindow()} event has been called
-	 */	
+	 */
 	private boolean mWindowAttached = false;
 	/**
 	 * View Layout being shown over ActionBar
-	 */	
+	 */
 	private GoogleStyleViewLayout mGoogleStyleViewLayout;
 	/**
 	 * Progress Bar being shown over ActionBar
 	 */
-	private GoogleStyleProgressLayout mGoogleStyleProgressLayout;	
+	private GoogleStyleProgressLayout mGoogleStyleProgressLayout;
 	/**
 	 * Progress bar ratating on center while Refreshing
-	 */	
+	 */
 	private ProgressBar mRefreshableViewProgressBar;
 
 	private OnRefreshListener<T> mOnRefreshListener;
@@ -178,9 +180,9 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Height of {@code mRefreshableViewRefreshingBar}
 	 */
-	private int mRefeshableViewRefreshingBarHeight = DFEAULT_REFRESHABLEVIEW_REFRESHING_BAR_SIZE;	
+	private int mRefeshableViewRefreshingBarHeight = DFEAULT_REFRESHABLEVIEW_REFRESHING_BAR_SIZE;
 	/**
-	 * Flag whether Google style view layout's size is set to ActionBar's size 
+	 * Flag whether Google style view layout's size is set to ActionBar's size
 	 * (Don't set to false as possible, it's hard to control height if this flag is false)
 	 */
 	private boolean mSetGoogleViewLayoutSizeToActionbarHeight = true;
@@ -188,6 +190,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	private int mYPositionOfGoogleStyleViewLayout;
 
 	private int mYPositionOfGoogleStyleProgressLayout;
+
 	// ===========================================================
 	// Constructors
 	// ===========================================================
@@ -213,7 +216,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		mLoadingLayoutClazz = loadingLayoutClazz;
 		init(context, null);
 	}
-	
+
 	@Override
 	public void addView(View child, int index, ViewGroup.LayoutParams params) {
 		if (DEBUG) {
@@ -228,7 +231,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			throw new UnsupportedOperationException("Refreshable View is not a ViewGroup so can't addView");
 		}
 	}
-	
+
 	@Deprecated
 	@Override
 	public final boolean demo() {
@@ -306,16 +309,16 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		return mState == State.REFRESHING || mState == State.MANUAL_REFRESHING;
 	}
 
-    @Override
-    public final void stopRefreshing() {
-        onRefreshComplete();
-    }
+	@Override
+	public final void stopRefreshing() {
+		onRefreshComplete();
+	}
 
 	@Override
 	public final boolean isScrollingWhileRefreshingEnabled() {
 		return mScrollingWhileRefreshingEnabled;
 	}
-	
+
 	@Override
 	public final boolean onInterceptTouchEvent(MotionEvent event) {
 
@@ -478,16 +481,24 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 */
 	public final void setSmoothScrollDuration(int smoothScrollDurationMs) {
 		this.mSmoothScrollDurationMs = smoothScrollDurationMs;
-	} 
+	}
 	/**
-	 * Set new smooth scroll <b>longer</b> duration. <br /> This duration is only used by calling {@link #smoothScrollToLonger(int)}. 
+	 * Set new smooth scroll <b>longer</b> duration. <br /> This duration is only used by calling {@link #smoothScrollToLonger(int)}.
 	 * @param smoothScrollLongDurationMs Milliseconds. The default value is {@value #DEFAULT_SMOOTH_SCROLL_LONG_DURATION_MS}.
 	 */
 	public final void setSmoothScrollLongDuration(int smoothScrollLongDurationMs) {
 		this.mSmoothScrollLongDurationMs = smoothScrollLongDurationMs;
-	} 
+	}
 	/**
-	 * 
+	 * Sets the ratio in which we start the release-to-refresh state (e.g. if ratio = 2, only when the
+	 * user pulls the list twice as much, then we'll enter the release-to-refresh state).
+	 * @param ratio the ratio
+	 */
+	public final void setReleaseRatio(float ratio) {
+		this.mReleaseRatio = ratio;
+	}
+	/**
+	 *
 	 */
 	public final void setScrollingWhileRefreshingEnabled(boolean allowScrollingWhileRefreshing) {
 		mScrollingWhileRefreshingEnabled = allowScrollingWhileRefreshing;
@@ -657,7 +668,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * Wrap {@link #getPullToRefreshScrollDirection()} method <br />
 	 * Other methods Use this method instead of {@link #getPullToRefreshScrollDirection()} method, because an orientation must be VERTICAL when mode is google style
 	 * </p>
-	 * @return Oreintation.VERTICAL if mMode.showGoogleStyle() is true,<br />Return value of {@link #getPullToRefreshScrollDirection()} method if else 
+	 * @return Oreintation.VERTICAL if mMode.showGoogleStyle() is true,<br />Return value of {@link #getPullToRefreshScrollDirection()} method if else
 	 */
 	public final Orientation getFilteredPullToRefreshScrollDirection() {
 		Orientation orientation = getPullToRefreshScrollDirection();
@@ -725,8 +736,8 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		return LoadingLayoutFactory.createLoadingLayout(mLoadingLayoutClazz, context, mode, getFilteredPullToRefreshScrollDirection(), attrs);
 	}
 	/**
-	 * Create a new google style view layout instance by using the class token 
-	 * @param layoutCode Google style view layout code to be converted to some class token 
+	 * Create a new google style view layout instance by using the class token
+	 * @param layoutCode Google style view layout code to be converted to some class token
 	 * @param context
 	 * @param mode
 	 * @param attrs
@@ -736,10 +747,10 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			String layoutCode, Context context, TypedArray a) {
 		Class<? extends GoogleStyleViewLayout> clazz = GoogleStyleViewLayoutFactory.createGoogleStyleViewLayoutClazzByLayoutCode(layoutCode);
 		return GoogleStyleViewLayoutFactory.createGoogleStyleViewLayout(clazz, context, a);
-	}	
+	}
 	/**
-	 * Create a new google style progress layout instance by using the class token 
-	 * @param layoutCode google style progress layout code  to be converted to some class token 
+	 * Create a new google style progress layout instance by using the class token
+	 * @param layoutCode google style progress layout code  to be converted to some class token
 	 * @param context
 	 * @param mode
 	 * @param attrs
@@ -774,7 +785,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * <p/>
 	 * Be sure to set the ID of the view in this method, especially if you're
 	 * using a ListActivity or ListFragment.
-	 * 
+	 *
 	 * @param context Context to create view with
 	 * @param attrs AttributeSet from wrapped class. Means that anything you
 	 *            include in the XML layout declaration will be routed to the
@@ -822,7 +833,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Allows Derivative classes to handle the XML Attrs without creating a
 	 * TypedArray themsevles
-	 * 
+	 *
 	 * @param a - TypedArray of PullToRefresh Attributes
 	 */
 	protected void handleStyledAttributes(TypedArray a) {
@@ -831,7 +842,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Implemented by derived class to return whether the View is in a state
 	 * where the user can Pull to Refresh by scrolling from the end.
-	 * 
+	 *
 	 * @return true if the View is currently in the correct state (for example,
 	 *         bottom of a ListView)
 	 */
@@ -840,7 +851,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Implemented by derived class to return whether the View is in a state
 	 * where the user can Pull to Refresh by scrolling from the start.
-	 * 
+	 *
 	 * @return true if the View is currently the correct state (for example, top
 	 *         of a ListView)
 	 */
@@ -849,7 +860,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Called by {@link #onRestoreInstanceState(Parcelable)} so that derivative
 	 * classes can handle their saved instance state.
-	 * 
+	 *
 	 * @param savedInstanceState - Bundle which contains saved instance state.
 	 */
 	protected void onPtrRestoreInstanceState(Bundle savedInstanceState) {
@@ -858,7 +869,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Called by {@link #onSaveInstanceState()} so that derivative classes can
 	 * save their instance state.
-	 * 
+	 *
 	 * @param saveState - Bundle to be updated with saved state.
 	 */
 	protected void onPtrSaveInstanceState(Bundle saveState) {
@@ -890,11 +901,11 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Called when the UI has been to be updated to be in the
 	 * {@link State#REFRESHING} or {@link State#MANUAL_REFRESHING} state.
-	 * 
+	 *
 	 * @param doScroll - Whether the UI should scroll for this event.
 	 */
 	protected void onRefreshing(final boolean doScroll) {
-		// Set the flag as below for fade-in animation of mRefreshableView when releasing 
+		// Set the flag as below for fade-in animation of mRefreshableView when releasing
 		mRefreshing = true;
 
 		if (mMode.showHeaderLoadingLayout()) {
@@ -906,7 +917,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		if (mMode.showGoogleStyle()) {
 			// Fade-out mRefreshableView
 			if ( mRefeshableViewHideWhileRefreshingEnabled == true ) {
-				AlphaAnimator.fadeout(mRefreshableView, mRefeshableViewHideWhileRefreshingDuration);	
+				AlphaAnimator.fadeout(mRefreshableView, mRefeshableViewHideWhileRefreshingDuration);
 			}
 			// Fade-in refreshing bar on center
 			if (mRefeshableViewRefreshingBarViewWhileRefreshingEnabled == true ) {
@@ -996,7 +1007,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 				AlphaAnimator.fadeout(mRefreshableViewProgressBar, mRefeshableViewRefreshingBarViewWhileRefreshingDuration, new AnimationListener(){
 					@Override
 					public void onAnimationEnd(Animation animation) {
-						mRefreshableViewProgressBar.setVisibility(View.INVISIBLE);					
+						mRefreshableViewProgressBar.setVisibility(View.INVISIBLE);
 					}
 
 					@Override
@@ -1007,7 +1018,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 					@Override
 					public void onAnimationStart(Animation animation) {
 						// do nothing
-					}});	
+					}});
 			}
 		}
 
@@ -1176,7 +1187,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Helper method which just calls scrollTo() in the correct scrolling
 	 * direction.
-	 * 
+	 *
 	 * @param value - New Scroll value
 	 */
 	protected final void setHeaderScroll(int value) {
@@ -1194,7 +1205,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 					case GOOGLE_STYLE:
 						mGoogleStyleViewLayout.setVisibility(View.VISIBLE);
 						break;
-					default:	
+					default:
 					case PULL_FROM_START:
 						mHeaderLayout.setVisibility(View.VISIBLE);
 						break;
@@ -1213,11 +1224,11 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			 * all. We don't use them on the Header/Footer Views as they change
 			 * often, which would negate any HW layer performance boost.
 			 */
-			ViewCompat.setLayerType(mRefreshableViewWrapper, value != 0 ? LAYER_TYPE_HARDWARE 
+			ViewCompat.setLayerType(mRefreshableViewWrapper, value != 0 ? LAYER_TYPE_HARDWARE
 					: LAYER_TYPE_NONE /* View.LAYER_TYPE_NONE */);
 		}
 
-		// skip ScrollTo(...) 
+		// skip ScrollTo(...)
 		if (mMode.showGoogleStyle() ) {
 			return;
 		}
@@ -1235,7 +1246,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Smooth Scroll to position using the duration of
 	 * {@link #mSmoothScrollDurationMs} ms.
-	 * 
+	 *
 	 * @param scrollValue - Position to scroll to
 	 */
 	protected final void smoothScrollTo(int scrollValue) {
@@ -1245,7 +1256,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Smooth Scroll to position using the the duration of
 	 * {@link #mSmoothScrollDurationMs} ms.
-	 * 
+	 *
 	 * @param scrollValue - Position to scroll to
 	 * @param listener - Listener for scroll
 	 */
@@ -1256,7 +1267,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	/**
 	 * Smooth Scroll to position using the longer the duration of
 	 * {@link #mSmoothScrollLongDurationMs} ms.
-	 * 
+	 *
 	 * @param scrollValue - Position to scroll to
 	 */
 	protected final void smoothScrollToLonger(int scrollValue) {
@@ -1299,7 +1310,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * Be called separately for google style mode when updating ui
 	 */
 	protected void updateUIForGoogleStyleMode() {
-	    // Skip if this view is loaded from preview mode of IDE
+		// Skip if this view is loaded from preview mode of IDE
 		if (isInEditMode()) {
 			return;
 		}
@@ -1308,8 +1319,8 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		}
 
 		if ( mMode.showGoogleStyle() == false ) {
-            return;
-        }
+			return;
+		}
 
 		// We need to use the correct LayoutParam values, based on scroll
 		// direction
@@ -1331,11 +1342,11 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 				@Override
 				public void run() {
 					mGoogleStyleViewLayout.setHeight(mActionBarHeight);
-				}});			
+				}});
 		}
 		// Show Google style view layout to screen
 		mGoogleStyleViewLayout.setVisibility(View.VISIBLE);
-		
+
 		// Hide Loading Views
 		refreshLoadingViewsSize();
 
@@ -1410,10 +1421,10 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		String loadingLayoutCode = null;
 		if (a.hasValue(R.styleable.PullToRefresh_ptrAnimationStyle)) {
 			loadingLayoutCode = a.getString(R.styleable.PullToRefresh_ptrAnimationStyle);
-		} 
-		
+		}
+
 		mLoadingLayoutClazz = LoadingLayoutFactory.createLoadingLayoutClazzByLayoutCode(loadingLayoutCode);
-		
+
 		// Refreshable View
 		// By passing the attrs, we can add ListView/GridView params via XML
 		mRefreshableView = createRefreshableView(context, attrs);
@@ -1430,15 +1441,15 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		String googleStyleViewLayoutCode = null;
 		if (a.hasValue(R.styleable.PullToRefresh_ptrGoogleViewStyle)) {
 			googleStyleViewLayoutCode = a.getString(R.styleable.PullToRefresh_ptrGoogleViewStyle);
-		} 
+		}
 		// Get a Google style progress layout class token
 		String googleStyleProgressLayoutCode = null;
 		if (a.hasValue(R.styleable.PullToRefresh_ptrGoogleViewStyle)) {
 			googleStyleProgressLayoutCode = a.getString(R.styleable.PullToRefresh_ptrGoogleProgressStyle);
-		} 
+		}
 		// Get a google style view layout
 		mGoogleStyleViewLayout = createGoogleStyleViewLayout(googleStyleViewLayoutCode, context, a);
-		// Get a google style progress layout 
+		// Get a google style progress layout
 		mGoogleStyleProgressLayout = createGoogleStyleProgressLayout(googleStyleProgressLayoutCode, context, a);
 		// Get animation options for Google style mode
 		if (a.hasValue(R.styleable.PullToRefresh_ptrShowGoogleStyleViewAnimationEnabled)) {
@@ -1460,18 +1471,18 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			mRefeshableViewRefreshingBarViewWhileRefreshingDuration = a.getInteger(R.styleable.PullToRefresh_ptrViewRefeshableViewProgressBarOnCenterWhileRefreshingDuration, REFRESHABLEVIEW_REFRESHING_BAR_VIEW_WHILE_REFRESHING_DURATION);
 		}
 
-		// Get a flag that decides Google View Layout's size is set to ActionBar's 
+		// Get a flag that decides Google View Layout's size is set to ActionBar's
 		if (a.hasValue(R.styleable.PullToRefresh_ptrSetGoogleViewLayoutSizeToActionbarHeight)) {
 			mSetGoogleViewLayoutSizeToActionbarHeight = a.getBoolean(R.styleable.PullToRefresh_ptrSetGoogleViewLayoutSizeToActionbarHeight, true);
 		}
 
-		// Get width or height attr of refreshing bar 
+		// Get width or height attr of refreshing bar
 		if (a.hasValue(R.styleable.PullToRefresh_ptrRefeshableViewProgressBarOnCenterWidth)) {
 			mRefeshableViewRefreshingBarWidth = a.getInteger(R.styleable.PullToRefresh_ptrRefeshableViewProgressBarOnCenterWidth, DFEAULT_REFRESHABLEVIEW_REFRESHING_BAR_SIZE);
 		}
 		if (a.hasValue(R.styleable.PullToRefresh_ptrRefeshableViewProgressBarOnCenterHeight)) {
 			mRefeshableViewRefreshingBarHeight = a.getInteger(R.styleable.PullToRefresh_ptrRefeshableViewProgressBarOnCenterHeight, DFEAULT_REFRESHABLEVIEW_REFRESHING_BAR_SIZE);
-		}		
+		}
 		/**
 		 * Styleables from XML
 		 */
@@ -1496,34 +1507,36 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			mScrollingWhileRefreshingEnabled = a.getBoolean(
 					R.styleable.PullToRefresh_ptrScrollingWhileRefreshingEnabled, false);
 		}
-		
-		// set scroll properties from attributes 
+
+		// set scroll properties from attributes
 		float friction = a.getFloat(R.styleable.PullToRefresh_ptrFriction, DEFAULT_FRICTION);
 		int smoothScrollDuration = a.getInt(R.styleable.PullToRefresh_ptrSmoothScrollDuration, DEFAULT_SMOOTH_SCROLL_DURATION_MS);
 		int smoothScrollLongDuration = a.getInt(R.styleable.PullToRefresh_ptrSmoothScrollLongDuration, DEFAULT_SMOOTH_SCROLL_LONG_DURATION_MS);
-		
+		float ratio = a.getFloat(R.styleable.PullToRefresh_ptrReleaseRatio, DEFAULT_RELEASE_RATIO);
+
 		setFriction(friction);
 		setSmoothScrollDuration(smoothScrollDuration);
 		setSmoothScrollLongDuration(smoothScrollLongDuration);
-		
+		setReleaseRatio(ratio);
+
 		// Let the derivative classes have a go at handling attributes, then
 		// recycle them...
 		handleStyledAttributes(a);
 		a.recycle();
 
-		// Get action bar height and status bar height 
+		// Get action bar height and status bar height
 		initActionBarSize(context);
 		initStatusBarSize(context);
 
 		determineYPositionOfGoogleStyleViewLayout();
-		
+
 		// Finally update the UI for the modes
 		updateUIForMode();
 		// updateUIForGoogleStyleMode() method will be called when onAttachedToWindow() event has been fired.
 	}
 
 	private void filterModeForSDKVersion() {
-		// If SDK version is 2.x or lower, Let the mode not be google mode. 
+		// If SDK version is 2.x or lower, Let the mode not be google mode.
 		// Because google mode should not be supported in those versions.
 		if ( VERSION.SDK_INT < VERSION_CODES.HONEYCOMB && mMode == Mode.GOOGLE_STYLE ) {
 			mMode = Mode.PULL_FROM_START;
@@ -1531,130 +1544,130 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	}
 
 	private void determineYPositionOfGoogleStyleViewLayout() {
-		if ( VERSION.SDK_INT < VERSION_CODES.ICE_CREAM_SANDWICH ) { 
+		if ( VERSION.SDK_INT < VERSION_CODES.ICE_CREAM_SANDWICH ) {
 			mYPositionOfGoogleStyleViewLayout = 0;
 		} else {
 			mYPositionOfGoogleStyleViewLayout = mStatusBarHeight;
 		}
 	}
 	/**
-	 * NOTE : This method must be called after initStatusBarSize() and initActionBarSize() have already been called. Also, mGoogleStyleProgressLayout should be initialized before calling this method. 
+	 * NOTE : This method must be called after initStatusBarSize() and initActionBarSize() have already been called. Also, mGoogleStyleProgressLayout should be initialized before calling this method.
 	 */
 	private void determineYPositionOfGoogleStyleProgressLayout() {
-		if ( VERSION.SDK_INT < VERSION_CODES.ICE_CREAM_SANDWICH ) { 
+		if ( VERSION.SDK_INT < VERSION_CODES.ICE_CREAM_SANDWICH ) {
 			mYPositionOfGoogleStyleProgressLayout = mStatusBarHeight + 1;
 		} else {
 			mYPositionOfGoogleStyleProgressLayout = mActionBarHeight + mGoogleStyleProgressLayout.getHeight() + 1;
-		}		
+		}
 	}
 	/**
 	 * Show google view layout and google progress layout when pulling
 	 */
 	private void showViewTopLayout() {
-    	if (mMode.showGoogleStyle() == false ) {
-    		return;
-    	}
+		if (mMode.showGoogleStyle() == false ) {
+			return;
+		}
 
-    	// Initialize Translate and Alpha animation
-    	if ( mShowGoogleStyleViewAnimationEnabled == true ) {
-        	AnimationSet set = new AnimationSet(true /* share interpolator */);
-        	set.setDuration(mShowGoogleStyleViewAnimationDuration);
-        	set.setFillAfter(true);
-        	set.setAnimationListener(new AnimationListener(){
+		// Initialize Translate and Alpha animation
+		if ( mShowGoogleStyleViewAnimationEnabled == true ) {
+			AnimationSet set = new AnimationSet(true /* share interpolator */);
+			set.setDuration(mShowGoogleStyleViewAnimationDuration);
+			set.setFillAfter(true);
+			set.setAnimationListener(new AnimationListener(){
 
-    			@Override
-    			public void onAnimationEnd(Animation anim) {
-    			}
+				@Override
+				public void onAnimationEnd(Animation anim) {
+				}
 
-    			@Override
-    			public void onAnimationRepeat(Animation anim) {
-    			}
+				@Override
+				public void onAnimationRepeat(Animation anim) {
+				}
 
-    			@Override
-    			public void onAnimationStart(Animation anim) {
-    				mTopActionbarLayout.setVisibility(View.VISIBLE);
-    			}});
-        	
-        	TranslateAnimation transAnimation = new TranslateAnimation(Animation.ABSOLUTE, 0,Animation.ABSOLUTE, 0, Animation.ABSOLUTE, -mActionBarHeight, Animation.ABSOLUTE, mYPositionOfGoogleStyleViewLayout);
-        	AlphaAnimation alphaAnimation = new AlphaAnimation(0.0f, 1.0f);
-        	set.addAnimation(transAnimation);
-        	set.addAnimation(alphaAnimation);
-        	// Start animation
-        	mTopActionbarLayout.startAnimation(set);    		
-    	} else {
-       		// Show Google style view layout without animation
-    		((FrameLayout.LayoutParams) mTopActionbarLayout.getLayoutParams()).topMargin = mYPositionOfGoogleStyleViewLayout;
-    		mTopActionbarLayout.setVisibility(View.VISIBLE);   		
-    	}
+				@Override
+				public void onAnimationStart(Animation anim) {
+					mTopActionbarLayout.setVisibility(View.VISIBLE);
+				}});
 
-    	mGoogleStyleProgressLayout.setVisibility(View.VISIBLE);
-    }
+			TranslateAnimation transAnimation = new TranslateAnimation(Animation.ABSOLUTE, 0,Animation.ABSOLUTE, 0, Animation.ABSOLUTE, -mActionBarHeight, Animation.ABSOLUTE, mYPositionOfGoogleStyleViewLayout);
+			AlphaAnimation alphaAnimation = new AlphaAnimation(0.0f, 1.0f);
+			set.addAnimation(transAnimation);
+			set.addAnimation(alphaAnimation);
+			// Start animation
+			mTopActionbarLayout.startAnimation(set);
+		} else {
+			// Show Google style view layout without animation
+			((FrameLayout.LayoutParams) mTopActionbarLayout.getLayoutParams()).topMargin = mYPositionOfGoogleStyleViewLayout;
+			mTopActionbarLayout.setVisibility(View.VISIBLE);
+		}
+
+		mGoogleStyleProgressLayout.setVisibility(View.VISIBLE);
+	}
 
 	/**
 	 * Hide google view layout and google progress layout when releasing
 	 */
 	private void hideViewTopLayout() {
-    	if (mMode.showGoogleStyle() == false ) {
-    		return;
-    	}
+		if (mMode.showGoogleStyle() == false ) {
+			return;
+		}
 
-    	if ( mShowGoogleStyleViewAnimationEnabled == true ) {
-        	// Initialize Translate and Alpha animation
-    	   	AnimationSet set = new AnimationSet(true /* share interpolator */);
-        	set.setDuration(mShowGoogleStyleViewAnimationDuration);
-        	set.setFillAfter(true);
-        	set.setAnimationListener(new AnimationListener(){
+		if ( mShowGoogleStyleViewAnimationEnabled == true ) {
+			// Initialize Translate and Alpha animation
+			AnimationSet set = new AnimationSet(true /* share interpolator */);
+			set.setDuration(mShowGoogleStyleViewAnimationDuration);
+			set.setFillAfter(true);
+			set.setAnimationListener(new AnimationListener(){
 
-    			@Override
-    			public void onAnimationEnd(Animation anim) {
-    				mTopActionbarLayout.setVisibility(View.INVISIBLE);
-    			}
+				@Override
+				public void onAnimationEnd(Animation anim) {
+					mTopActionbarLayout.setVisibility(View.INVISIBLE);
+				}
 
-    			@Override
-    			public void onAnimationRepeat(Animation anim) {
-    			}
+				@Override
+				public void onAnimationRepeat(Animation anim) {
+				}
 
-    			@Override
-    			public void onAnimationStart(Animation anim) {
-    			}});
-        	
-        	TranslateAnimation transAnimation = new TranslateAnimation(Animation.ABSOLUTE, 0,Animation.ABSOLUTE, 0, Animation.ABSOLUTE, mTopActionbarLayout.getTop(), Animation.ABSOLUTE, -mStatusBarHeight);
-        	AlphaAnimation alphaAnimation = new AlphaAnimation(1.0f, 0.0f);
-        	set.addAnimation(transAnimation);
-        	set.addAnimation(alphaAnimation);
-        	// Start animation
-        	mTopActionbarLayout.startAnimation(set);
-    	} else {
-      		// Hide Google style view layout without animation
-    		((FrameLayout.LayoutParams) mTopActionbarLayout.getLayoutParams()).topMargin = -mActionBarHeight;
-    		mTopActionbarLayout.setVisibility(View.INVISIBLE);
-    	}
+				@Override
+				public void onAnimationStart(Animation anim) {
+				}});
 
-    	mGoogleStyleProgressLayout.setVisibility(View.INVISIBLE);
-    }
-    
+			TranslateAnimation transAnimation = new TranslateAnimation(Animation.ABSOLUTE, 0,Animation.ABSOLUTE, 0, Animation.ABSOLUTE, mTopActionbarLayout.getTop(), Animation.ABSOLUTE, -mStatusBarHeight);
+			AlphaAnimation alphaAnimation = new AlphaAnimation(1.0f, 0.0f);
+			set.addAnimation(transAnimation);
+			set.addAnimation(alphaAnimation);
+			// Start animation
+			mTopActionbarLayout.startAnimation(set);
+		} else {
+			// Hide Google style view layout without animation
+			((FrameLayout.LayoutParams) mTopActionbarLayout.getLayoutParams()).topMargin = -mActionBarHeight;
+			mTopActionbarLayout.setVisibility(View.INVISIBLE);
+		}
+
+		mGoogleStyleProgressLayout.setVisibility(View.INVISIBLE);
+	}
+
 	@Override
 	protected void onAttachedToWindow() {
 		super.onAttachedToWindow();
 		mWindowAttached = true;
-		
+
 		initTopViewGroup();
 		updateUIForGoogleStyleMode();
 	}
 
 	/**
-     * Initialize {@code mTopActionbarLayout} and add that into Top DecorView(this is the root view),
-     * and initialize needed components
-     */   
+	 * Initialize {@code mTopActionbarLayout} and add that into Top DecorView(this is the root view),
+	 * and initialize needed components
+	 */
 	private void initTopViewGroup() {
 
 		// Skip if this view is loaded from preview mode of IDE
 		if (isInEditMode()) {
 			return;
 		}
-        if ( mMode.showGoogleStyle() == false ) {
-            return;
-        }
+		if ( mMode.showGoogleStyle() == false ) {
+			return;
+		}
 
 		View view = this.getRootView();
 		ViewGroup topViewGroup = null;
@@ -1676,20 +1689,20 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 		@SuppressWarnings("deprecation")
 		int matchParent = ViewGroup.LayoutParams.FILL_PARENT;
-		
+
 		ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(matchParent, mActionBarHeight);
-		
+
 		topViewGroup.addView(layout, params);
 		layout.setVisibility(View.INVISIBLE);
 
 		// Initialize refreshing bar on center
-        if (mMode.showGoogleStyle()) {
-            mRefreshableViewProgressBar = generateCircleProgressBar(context);
-            FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(mRefeshableViewRefreshingBarWidth, mRefeshableViewRefreshingBarHeight);
-            barParams.gravity = Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL;
-            mRefreshableViewProgressBar.setVisibility(View.INVISIBLE);
-            mRefreshableViewWrapper.addView(mRefreshableViewProgressBar, -1, barParams);        	
-        }
+		if (mMode.showGoogleStyle()) {
+			mRefreshableViewProgressBar = generateCircleProgressBar(context);
+			FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(mRefeshableViewRefreshingBarWidth, mRefeshableViewRefreshingBarHeight);
+			barParams.gravity = Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL;
+			mRefreshableViewProgressBar.setVisibility(View.INVISIBLE);
+			mRefreshableViewWrapper.addView(mRefreshableViewProgressBar, -1, barParams);
+		}
 		// Initialize Google style progress layout
 		topViewGroup.addView(mGoogleStyleProgressLayout, mGoogleStyleProgressLayout.createLayoutParams());
 		mGoogleStyleProgressLayout.setVisibility(View.INVISIBLE);
@@ -1700,7 +1713,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			public void run() {
 				determineYPositionOfGoogleStyleProgressLayout();
 				mGoogleStyleProgressLayout.setTopMargin(mYPositionOfGoogleStyleProgressLayout);
-				
+
 			}});
 
 		// Finally assign
@@ -1727,10 +1740,10 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * @return Generated ProgressBar instance
 	 */
 	private ProgressBar generateCircleProgressBar(Context context) {
-        ProgressBar circleProgressBar = new ProgressBar(context);
-        circleProgressBar.setScrollBarStyle(android.R.attr.progressBarStyle);
-        circleProgressBar.setIndeterminate(true);
-		
+		ProgressBar circleProgressBar = new ProgressBar(context);
+		circleProgressBar.setScrollBarStyle(android.R.attr.progressBarStyle);
+		circleProgressBar.setIndeterminate(true);
+
 		return circleProgressBar;
 	}
 
@@ -1750,7 +1763,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 	/**
 	 * Actions a Pull Event
-	 * 
+	 *
 	 * @return true if the Event has been handled, false if there has been no
 	 *         change
 	 */
@@ -1807,7 +1820,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 			if (mState != State.PULL_TO_REFRESH && itemDimension >= Math.abs(newScrollValue)) {
 				setState(State.PULL_TO_REFRESH);
-			} else if (mState == State.PULL_TO_REFRESH && itemDimension < Math.abs(newScrollValue)) {
+			} else if (mState == State.PULL_TO_REFRESH && (itemDimension * mReleaseRatio) < Math.abs(newScrollValue)) {
 				setState(State.RELEASE_TO_REFRESH);
 			}
 		}
@@ -1838,7 +1851,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 	/**
 	 * Smooth Scroll to position using the specific duration
-	 * 
+	 *
 	 * @param scrollValue - Position to scroll to
 	 * @param duration - Duration of animation in milliseconds
 	 */
@@ -1847,7 +1860,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	}
 
 	private final void smoothScrollTo(int newScrollValue, long duration, long delayMillis,
-			OnSmoothScrollFinishedListener listener) {
+									  OnSmoothScrollFinishedListener listener) {
 		if (null != mCurrentSmoothScrollRunnable) {
 			mCurrentSmoothScrollRunnable.stop();
 		}
@@ -1875,8 +1888,8 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			} else {
 				post(mCurrentSmoothScrollRunnable);
 			}
-			
-		} else if ( listener != null ) { 
+
+		} else if ( listener != null ) {
 			// Call listener immediately
 			listener.onSmoothScrollFinished();
 		}
@@ -1930,7 +1943,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		 *
 		 */
 		GOOGLE_STYLE(0x5);
-		
+
 		/**
 		 * @deprecated Use {@link #PULL_FROM_START} from now on.
 		 */
@@ -1945,7 +1958,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		 * Maps an int to a specific mode. This is needed when saving state, or
 		 * inflating the view from XML where the mode is given through a attr
 		 * int.
-		 * 
+		 *
 		 * @param modeInt - int to map a Mode to
 		 * @return Mode that modeInt maps to, or PULL_FROM_START by default.
 		 */
@@ -2013,7 +2026,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * Simple Listener that allows you to be notified when the user has scrolled
 	 * to the end of the AdapterView. See (
 	 * {@link PullToRefreshAdapterViewBase#setOnLastItemVisibleListener}.
-	 * 
+	 *
 	 * @author Chris Banes
 	 */
 	public static interface OnLastItemVisibleListener {
@@ -2030,7 +2043,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * finished a touch event. Useful when you want to append extra UI events
 	 * (such as sounds). See (
 	 * {@link PullToRefreshAdapterViewBase#setOnPullEventListener}.
-	 * 
+	 *
 	 * @author Chris Banes
 	 */
 	public static interface OnPullEventListener<V extends View> {
@@ -2038,7 +2051,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		/**
 		 * Called when the internal state has been changed, usually by the user
 		 * pulling.
-		 * 
+		 *
 		 * @param refreshView - View which has had it's state change.
 		 * @param state - The new state of View.
 		 * @param direction - One of {@link Mode#PULL_FROM_START} or
@@ -2053,7 +2066,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 	/**
 	 * Simple Listener to listen for any callbacks to Refresh.
-	 * 
+	 *
 	 * @author Chris Banes
 	 */
 	public static interface OnRefreshListener<V extends View> {
@@ -2070,7 +2083,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * An advanced version of the Listener to listen for callbacks to Refresh.
 	 * This listener is different as it allows you to differentiate between Pull
 	 * Ups, and Pull Downs.
-	 * 
+	 *
 	 * @author Chris Banes
 	 */
 	public static interface OnRefreshListener2<V extends View> {
@@ -2133,7 +2146,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 
 		/**
 		 * Maps an int to a specific state. This is needed when saving state.
-		 * 
+		 *
 		 * @param stateInt - int to map a State to
 		 * @return State that stateInt maps to
 		 */
