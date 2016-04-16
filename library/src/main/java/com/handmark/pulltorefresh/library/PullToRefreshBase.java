@@ -62,6 +62,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	public static final int DEFAULT_SMOOTH_SCROLL_DURATION_MS = 200;
 	public static final int DEFAULT_SMOOTH_SCROLL_LONG_DURATION_MS = 325;
 	public static final float DEFAULT_RELEASE_RATIO = 1.0f;
+	public static final float DEFAULT_MAX_PULL_MULTIPLIER = 1.2f;
 
 	static final int DEMO_SCROLL_INTERVAL = 225;
 
@@ -92,6 +93,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	private int mSmoothScrollDurationMs = 200;
 	private int mSmoothScrollLongDurationMs = 325;
 	private float mReleaseRatio;
+	private float mMaxPullMultiplier;
 
 	private boolean mIsBeingDragged = false;
 	private State mState = State.RESET;
@@ -496,6 +498,9 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 */
 	public final void setReleaseRatio(float ratio) {
 		this.mReleaseRatio = ratio;
+	}
+	public final void setMaxPullMultiplier(float multiplier) {
+		this.mMaxPullMultiplier = multiplier;
 	}
 	/**
 	 *
@@ -1106,7 +1111,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * necessary
 	 */
 	protected final void refreshLoadingViewsSize() {
-		final int maximumPullScroll = (int) (getMaximumPullScroll() * 1.2f);
+		final int maximumPullScroll = (int) (getMaximumPullScroll() * mMaxPullMultiplier);
 
 		int pLeft = getPaddingLeft();
 		int pTop = getPaddingTop();
@@ -1513,11 +1518,13 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		int smoothScrollDuration = a.getInt(R.styleable.PullToRefresh_ptrSmoothScrollDuration, DEFAULT_SMOOTH_SCROLL_DURATION_MS);
 		int smoothScrollLongDuration = a.getInt(R.styleable.PullToRefresh_ptrSmoothScrollLongDuration, DEFAULT_SMOOTH_SCROLL_LONG_DURATION_MS);
 		float ratio = a.getFloat(R.styleable.PullToRefresh_ptrReleaseRatio, DEFAULT_RELEASE_RATIO);
+		float multiplier = a.getFloat(R.styleable.PullToRefresh_ptrMaxPullMultiplier, DEFAULT_MAX_PULL_MULTIPLIER);
 
 		setFriction(friction);
 		setSmoothScrollDuration(smoothScrollDuration);
 		setSmoothScrollLongDuration(smoothScrollLongDuration);
 		setReleaseRatio(ratio);
+		setMaxPullMultiplier(multiplier);
 
 		// Let the derivative classes have a go at handling attributes, then
 		// recycle them...
